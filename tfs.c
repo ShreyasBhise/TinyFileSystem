@@ -4,20 +4,7 @@
  *	File:	tfs.c
  *
  */
-
 #define FUSE_USE_VERSION 26
-
-#include <fuse.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <sys/time.h>
-#include <libgen.h>
-#include <limits.h>
 
 #include "block.h"
 #include "tfs.h"

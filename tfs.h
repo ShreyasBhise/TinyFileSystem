@@ -5,10 +5,18 @@
  *	File:	tfs.h
  *
  */
-
-#include <linux/limits.h>
-#include <sys/stat.h>
+#include <fuse.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <sys/time.h>
+#include <libgen.h>
+#include <limits.h>
+#include <linux/limits.h>
 
 #ifndef _TFS_H
 #define _TFS_H

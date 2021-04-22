@@ -6,9 +6,6 @@
  *	File:	block.c
  *
  */
-
-
-
 #include "block.h"
 
 //Disk size set to 32MB
