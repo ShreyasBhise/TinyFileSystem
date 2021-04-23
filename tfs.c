@@ -9,7 +9,7 @@
 #include "tfs.h"
 
 char diskfile_path[PATH_MAX];
-struct superblock* superBlock;
+struct superblock* superblock;
 
 // Declare your in-memory data structures here
 
@@ -24,11 +24,10 @@ int get_avail_ino() {
 
 	// Step 2: Traverse inode bitmap to find an available slot
 	int i;
-	for(i = 0; i < superBlock->max_inum; i++) {
-		int bit = get_bitmap(inode_bitmap, i);
+	for(i = 0; i < superblock->max_inum; i++) {
 
 		// Step 3: Update inode bitmap and write to disk 
-		if(bit == 0) {
+		if(get_bitmap(inode_bitmap, i) == 0) {
 			set_bitmap(inode_bitmap, i);
 			bio_write(1, inode_bitmap);
 			free(inode_bitmap);
@@ -36,11 +35,9 @@ int get_avail_ino() {
 		}
 	}
 
-	
 	puts("No available inode number found.");	
 	free(inode_bitmap);
 	return -1;
-	
 }
 
 /* 
@@ -143,8 +140,24 @@ int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
 int tfs_mkfs() {
 
 	// Call dev_init() to initialize (Create) Diskfile
+	dev_init(diskfile_path);
+	dev_open(diskfile_path);
 
+	if(diskfile == -1) {
+		puts("Error opening disk");
+		exit(EXIT_FAILURE);
+	}
 	// write superblock information
+	superblock = malloc(sizeof(struct superblock));
+	superblock->magic_num = MAGIC_NUM;
+	superblock->max_inum = MAX_INUM;
+	superblock->max_dnum = MAX_DNUM;
+	superblock->i_bitmap_blk = 1;
+	superblock->d_bitmap_blk = 2;
+	superblock->i_start_blk = 3;
+	int inodesPerBlock = BLOCK_SIZE/sizeof(struct inode);
+	superblock->d_start_blk = superblock->i_start_blk + ceil((float)superblock->max_inum/(float)inodesPerBlock);
+
 
 	// initialize inode bitmap
 
@@ -162,12 +175,18 @@ int tfs_mkfs() {
  * FUSE file operations
  */
 static void *tfs_init(struct fuse_conn_info *conn) {
-
 	// Step 1a: If disk file is not found, call mkfs
-
-  // Step 1b: If disk file is found, just initialize in-memory data structures
-  // and read superblock from disk
-
+	dev_open(diskfile_path);
+	if(diskfile == -1) 
+		if(tfs_mkfs() != 0)
+			puts("Error making disk.");
+	
+	// Step 1b: If disk file is found, just initialize in-memory data structures
+	// and read superblock from disk
+	else  {
+		superblock = (struct superblock*) malloc(sizeof(struct superblock));
+		bio_read(0, superblock);
+	}
 	return NULL;
 }
 

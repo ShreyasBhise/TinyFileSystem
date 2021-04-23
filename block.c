@@ -9,7 +9,7 @@
 
 #include "block.h"
 
-int diskfile = -1;
+diskfile = -1;
 
 //Creates a file which is your new emulated disk
 void dev_init(const char* diskfile_path) {
