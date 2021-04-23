@@ -25,7 +25,6 @@ int get_avail_ino() {
 	// Step 2: Traverse inode bitmap to find an available slot
 	int i;
 	for(i = 0; i < superblock->max_inum; i++) {
-
 		// Step 3: Update inode bitmap and write to disk 
 		if(get_bitmap(inode_bitmap, i) == 0) {
 			set_bitmap(inode_bitmap, i);
@@ -46,12 +45,24 @@ int get_avail_ino() {
 int get_avail_blkno() {
 
 	// Step 1: Read data block bitmap from disk
-	
+	bitmap_t data_bmap = malloc(BLOCK_SIZE);
+	bio_read(2, data_bmap);
+
 	// Step 2: Traverse data block bitmap to find an available slot
-
-	// Step 3: Update data block bitmap and write to disk 
-
-	return 0;
+	int i;
+	for(i = 0; i < superblock->max_dnum; i++) {
+		// Step 3: Update data block bitmap and write to disk 
+		if(get_bitmap(data_bmap, i) == 0) {
+			set_bitmap(data_bmap, i);
+			bio_write(2, data_bmap);
+			free(data_bmap);
+			return 0;
+		}
+	}
+	
+	puts("No available data block found.");
+	free(data_bmap);
+	return -1;
 }
 
 /* 
@@ -160,12 +171,17 @@ int tfs_mkfs() {
 
 
 	// initialize inode bitmap
+	bitmap_t inode_bmap = calloc(1, superblock->max_inum/8);
 
 	// initialize data block bitmap
+	bitmap_t data_bmap = calloc(1, superblock->max_dnum/8);
 
 	// update bitmap information for root directory
+	bio_write(1, inode_bmap);
+	bio_write(2, data_bmap);
 
 	// update inode for root directory
+
 
 	return 0;
 }
@@ -177,10 +193,10 @@ int tfs_mkfs() {
 static void *tfs_init(struct fuse_conn_info *conn) {
 	// Step 1a: If disk file is not found, call mkfs
 	dev_open(diskfile_path);
-	if(diskfile == -1) 
+	if(diskfile == -1) {
 		if(tfs_mkfs() != 0)
 			puts("Error making disk.");
-	
+	}
 	// Step 1b: If disk file is found, just initialize in-memory data structures
 	// and read superblock from disk
 	else  {

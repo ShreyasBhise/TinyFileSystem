@@ -18,6 +18,7 @@
 #include <libgen.h>
 #include <limits.h>
 #include <fuse.h>
+#include <math.h>
 
 #include "block.h"
 

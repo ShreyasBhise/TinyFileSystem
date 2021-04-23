@@ -1,14 +1,14 @@
 CC=gcc
 CFLAGS=-g -Wall -D_FILE_OFFSET_BITS=64
-LDFLAGS=-lfuse
+LDFLAGS=-lfuse -lm
 
 OBJ=tfs.o block.o
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -c $(CFLAGS) $< -o $@ 
 
 tfs: $(OBJ)
-	$(CC) $(OBJ) $(LDFLAGS) -o tfs
+	$(CC) $(OBJ) $(LDFLAGS) -o tfs 
 
 .PHONY: clean
 clean:
