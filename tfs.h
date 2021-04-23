@@ -5,18 +5,21 @@
  *	File:	tfs.h
  *
  */
-#include <fuse.h>
+
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <errno.h>
+#include <linux/limits.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <libgen.h>
 #include <limits.h>
-#include <linux/limits.h>
+#include <fuse.h>
+
+#include "block.h"
 
 #ifndef _TFS_H
 #define _TFS_H
@@ -24,7 +27,7 @@
 #define MAGIC_NUM 0x5C3A
 #define MAX_INUM 1024
 #define MAX_DNUM 16384
-
+#define FUSE_USE_VERSION 26 
 
 struct superblock {
 	uint32_t	magic_num;			/* magic number */

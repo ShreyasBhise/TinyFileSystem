@@ -6,6 +6,7 @@
  *	File:	block.c
  *
  */
+
 #include "block.h"
 
 int diskfile = -1;
@@ -13,13 +14,13 @@ int diskfile = -1;
 //Creates a file which is your new emulated disk
 void dev_init(const char* diskfile_path) {
     if (diskfile >= 0) {
-		return;
+		    return;
     }
     
     diskfile = open(diskfile_path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
     if (diskfile < 0) {
-		perror("disk_open failed");
-		exit(EXIT_FAILURE);
+        perror("disk_open failed");
+        exit(EXIT_FAILURE);
     }
 	
     ftruncate(diskfile, DISK_SIZE);
@@ -28,20 +29,20 @@ void dev_init(const char* diskfile_path) {
 //Function to open the disk file
 int dev_open(const char* diskfile_path) {
     if (diskfile >= 0) {
-		return 0;
+		    return 0;
     }
     
     diskfile = open(diskfile_path, O_RDWR, S_IRUSR | S_IWUSR);
     if (diskfile < 0) {
-		perror("disk_open failed");
-		return -1;
+        perror("disk_open failed");
+        return -1;
     }
 	return 0;
 }
 
 void dev_close() {
     if (diskfile >= 0) {
-		close(diskfile);
+		    close(diskfile);
     }
 }
 
@@ -50,9 +51,9 @@ int bio_read(const int block_num, void *buf) {
     int retstat = 0;
     retstat = pread(diskfile, buf, BLOCK_SIZE, block_num*BLOCK_SIZE);
     if (retstat <= 0) {
-		memset (buf, 0, BLOCK_SIZE);
+		    memset (buf, 0, BLOCK_SIZE);
 		if (retstat < 0)
-			perror("block_read failed");
+			  perror("block_read failed");
     }
 
     return retstat;

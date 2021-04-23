@@ -6,10 +6,10 @@
  */
 #define FUSE_USE_VERSION 26
 
-#include "block.h"
 #include "tfs.h"
 
 char diskfile_path[PATH_MAX];
+struct superblock* superBlock;
 
 // Declare your in-memory data structures here
 
@@ -19,12 +19,28 @@ char diskfile_path[PATH_MAX];
 int get_avail_ino() {
 
 	// Step 1: Read inode bitmap from disk
-	
+	bitmap_t inode_bitmap = malloc(BLOCK_SIZE);
+	bio_read(1, inode_bitmap);
+
 	// Step 2: Traverse inode bitmap to find an available slot
+	int i;
+	for(i = 0; i < superBlock->max_inum; i++) {
+		int bit = get_bitmap(inode_bitmap, i);
 
-	// Step 3: Update inode bitmap and write to disk 
+		// Step 3: Update inode bitmap and write to disk 
+		if(bit == 0) {
+			set_bitmap(inode_bitmap, i);
+			bio_write(1, inode_bitmap);
+			free(inode_bitmap);
+			return 0;
+		}
+	}
 
-	return 0;
+	
+	puts("No available inode number found.");	
+	free(inode_bitmap);
+	return -1;
+	
 }
 
 /* 
