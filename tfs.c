@@ -168,11 +168,21 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 	// Step 1: Read dir_inode's data block and check each directory entry of dir_inode
 	struct dirent* dataBlock = calloc(1, BLOCK_SIZE);
 	// Step 2: Check if fname (directory name) is already used in other entries
-	int inUse = dir_find(dir_inode->ino, fname, name_len, dataBlock);
+	int inUse = dir_find(dir_inode.ino, fname, name_len, dataBlock);
+
+	if(inUse == 0) {
+		puts("This directory already exists, exiting without overwriting.");
+		return -1;
+	}
 	// Step 3: Add directory entry in dir_inode's data block and write to disk
+	struct dirent* newDir = malloc(sizeof(struct dirent));
+	newDir->valid = 1; //make it valid
+	newDir->ino = f_ino; //ino from function args
+	strncpy(newDir->name, fname, name_len+1); //name from function args
+	newDir->len = name_len; //len from function args
 
 	// Allocate a new data block for this directory if it does not exist
-
+	
 	// Update directory inode
 
 	// Write directory entry
