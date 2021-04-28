@@ -29,8 +29,10 @@
 #define MAX_INUM 1024
 #define MAX_DNUM 16384
 #define FUSE_USE_VERSION 26 
+#define TFS_DIR 1
+#define TFS_FILE 2
 
-struct superblock {
+typedef struct superblock {
 	uint32_t	magic_num;			/* magic number */
 	uint16_t	max_inum;			/* maximum inode number */
 	uint16_t	max_dnum;			/* maximum data block number */
@@ -38,9 +40,9 @@ struct superblock {
 	uint32_t	d_bitmap_blk;		/* start block of data block bitmap */
 	uint32_t	i_start_blk;		/* start block of inode region */
 	uint32_t	d_start_blk;		/* start block of data block region */
-};
+} sb;
 
-struct inode {
+typedef struct inode {
 	uint16_t	ino;				/* inode number */
 	uint16_t	valid;				/* validity of the inode */
 	uint32_t	size;				/* size of the file */
@@ -49,14 +51,14 @@ struct inode {
 	int			direct_ptr[16];		/* direct pointer to data block */
 	int			indirect_ptr[8];	/* indirect pointer to data block */
 	struct stat	vstat;				/* inode stat */
-};
+} inode;
 
-struct dirent {
+typedef struct dirent {
 	uint16_t ino;					/* inode number of the directory entry */
 	uint16_t valid;					/* validity of the directory entry */
 	char name[208];					/* name of the directory entry */
 	uint16_t len;					/* length of name */
-};
+} dirent;
 
 
 /*
@@ -76,4 +78,7 @@ uint8_t get_bitmap(bitmap_t b, int i) {
     return b[i / 8] & (1 << (i & 7)) ? 1 : 0;
 }
 
+// User functions and variables
+
+inode* create_inode(int inodeType);
 #endif

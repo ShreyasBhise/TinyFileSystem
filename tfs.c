@@ -9,8 +9,8 @@
 #include "tfs.h"
 
 char diskfile_path[PATH_MAX];
-struct superblock* superblock;
-
+sb* superblock;
+int inodesPerBlock = BLOCK_SIZE/sizeof(struct inode);
 // Declare your in-memory data structures here
 
 /* 
@@ -69,25 +69,50 @@ int get_avail_blkno() {
  * inode operations
  */
 int readi(uint16_t ino, struct inode *inode) {
+	int return_status = 0;
 
   // Step 1: Get the inode's on-disk block number
+	int block = superblock->i_start_blk + ceil((float)ino/(float)inodesPerBlock);
+	struct inode* inodeBlock = (struct inode*) malloc(BLOCK_SIZE);
+	return_status = bio_read(block, inodeBlock);
 
-  // Step 2: Get offset of the inode in the inode on-disk block
+	if(return_status < 0) {
+		puts("Error reading disk.");
+		return return_status;
+	}
 
-  // Step 3: Read the block from disk and then copy into inode structure
+	// Step 2: Get the offset in the block where this inode resides on disk
+	int offset = (ino % inodesPerBlock) * sizeof(struct inode);
+	
+	// Step 3: Read the block from disk and then copy into inode structure
+	*inode = *(inodeBlock + offset);
 
-	return 0;
+	return return_status;
 }
 
 int writei(uint16_t ino, struct inode *inode) {
-
+	int return_status = 0;
 	// Step 1: Get the block number where this inode resides on disk
-	
+	int block = superblock->i_start_blk + ceil((float)ino/(float)inodesPerBlock);
+	struct inode* inodeBlock = (struct inode*) malloc(BLOCK_SIZE);
+	return_status = bio_read(block, inodeBlock);
+
+	if(return_status < 0) {
+		puts("Error reading disk.");
+		return return_status;
+	}
+
 	// Step 2: Get the offset in the block where this inode resides on disk
-
+	int offset = (ino % inodesPerBlock) * sizeof(struct inode);
+	//TODO: Overwrite the inode:
+	*(inodeBlock + offset) = *inode;
 	// Step 3: Write inode to disk 
-
-	return 0;
+	return_status = bio_write(block, inodeBlock);
+	if(return_status < 0) {
+		puts("Error writing to disk.");
+		return return_status;
+	}
+	return return_status;
 }
 
 
@@ -159,14 +184,14 @@ int tfs_mkfs() {
 		exit(EXIT_FAILURE);
 	}
 	// write superblock information
-	superblock = malloc(sizeof(struct superblock));
+	superblock = malloc(sizeof(sb));
 	superblock->magic_num = MAGIC_NUM;
 	superblock->max_inum = MAX_INUM;
 	superblock->max_dnum = MAX_DNUM;
 	superblock->i_bitmap_blk = 1;
 	superblock->d_bitmap_blk = 2;
 	superblock->i_start_blk = 3;
-	int inodesPerBlock = BLOCK_SIZE/sizeof(struct inode);
+	
 	superblock->d_start_blk = superblock->i_start_blk + ceil((float)superblock->max_inum/(float)inodesPerBlock);
 
 
@@ -181,12 +206,34 @@ int tfs_mkfs() {
 	bio_write(2, data_bmap);
 
 	// update inode for root directory
-
-
+	inode* root = create_inode(TFS_DIR);
+	writei(0, root);
 	return 0;
 }
 
+inode* create_inode(int inodeType) {
+	inode* temp = calloc(1, sizeof(inode));
+	temp->ino = get_avail_ino();
+	temp->valid = 1;
+	temp->size = 0;
+	temp->type = inodeType;
+	temp->link = (inodeType == TFS_DIR) ? 2 : 1;
 
+	for(int i = 0; i < 16; i++) {
+		temp->direct_ptr[i] = -1;
+		if(i < 8) {
+			temp->indirect_ptr[i] = -1;
+		}
+	}
+
+	struct stat* vstat = malloc(sizeof(struct stat));
+	vstat->st_mode = (inodeType == TFS_DIR) ? (S_IFDIR | 0755) : (S_IFREG | 0666);
+	time(&vstat->st_mtime);
+
+	temp->vstat = *vstat;
+
+	return temp;
+}
 /* 
  * FUSE file operations
  */
@@ -200,7 +247,7 @@ static void *tfs_init(struct fuse_conn_info *conn) {
 	// Step 1b: If disk file is found, just initialize in-memory data structures
 	// and read superblock from disk
 	else  {
-		superblock = (struct superblock*) malloc(sizeof(struct superblock));
+		superblock = (sb*) malloc(sizeof(sb));
 		bio_read(0, superblock);
 	}
 	return NULL;
@@ -209,9 +256,9 @@ static void *tfs_init(struct fuse_conn_info *conn) {
 static void tfs_destroy(void *userdata) {
 
 	// Step 1: De-allocate in-memory data structures
-
+	free(superblock);
 	// Step 2: Close diskfile
-
+	dev_close(diskfile);
 }
 
 static int tfs_getattr(const char *path, struct stat *stbuf) {
@@ -355,6 +402,10 @@ static int tfs_unlink(const char *path) {
 	return 0;
 }
 
+/**
+ *  Don't need to implement.
+ * 
+ **/
 static int tfs_truncate(const char *path, off_t size) {
 	// For this project, you don't need to fill this function
 	// But DO NOT DELETE IT!
