@@ -42,7 +42,7 @@ typedef struct superblock {
 	uint32_t	d_start_blk;		/* start block of data block region */
 } sb;
 
-typedef struct inode {
+struct inode {
 	uint16_t	ino;				/* inode number */
 	uint16_t	valid;				/* validity of the inode */
 	uint32_t	size;				/* size of the file */
@@ -51,14 +51,14 @@ typedef struct inode {
 	int			direct_ptr[16];		/* direct pointer to data block */
 	int			indirect_ptr[8];	/* indirect pointer to data block */
 	struct stat	vstat;				/* inode stat */
-} inode;
+};
 
-typedef struct dirent {
+struct dirent {
 	uint16_t ino;					/* inode number of the directory entry */
 	uint16_t valid;					/* validity of the directory entry */
 	char name[208];					/* name of the directory entry */
 	uint16_t len;					/* length of name */
-} dirent;
+};
 
 
 /*
@@ -80,5 +80,5 @@ uint8_t get_bitmap(bitmap_t b, int i) {
 
 // User functions and variables
 
-inode* create_inode(int inodeType);
+struct inode* create_inode(int inodeType);
 #endif

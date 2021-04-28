@@ -121,12 +121,19 @@ int writei(uint16_t ino, struct inode *inode) {
  */
 int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *dirent) {
 
-  // Step 1: Call readi() to get the inode using ino (inode number of current directory)
+  	// Step 1: Call readi() to get the inode using ino (inode number of current directory)
+	struct inode* currentDir = malloc(sizeof(struct inode));
+	int r = readi(ino, currentDir);
 
-  // Step 2: Get data block of current directory from inode
+	if(r < 0) {
+		puts("Error reading current directory's inode.");
+		return r;
+	}
 
-  // Step 3: Read directory's data block and check each directory entry.
-  //If the name matches, then copy directory entry to dirent structure
+  	// Step 2: Get data block of current directory from inode
+
+	// Step 3: Read directory's data block and check each directory entry.
+	//If the name matches, then copy directory entry to dirent structure
 
 	return 0;
 }
@@ -206,13 +213,13 @@ int tfs_mkfs() {
 	bio_write(2, data_bmap);
 
 	// update inode for root directory
-	inode* root = create_inode(TFS_DIR);
+	struct inode* root = create_inode(TFS_DIR);
 	writei(0, root);
 	return 0;
 }
 
-inode* create_inode(int inodeType) {
-	inode* temp = calloc(1, sizeof(inode));
+struct inode* create_inode(int inodeType) {
+	struct inode* temp = calloc(1, sizeof(struct inode));
 	temp->ino = get_avail_ino();
 	temp->valid = 1;
 	temp->size = 0;
