@@ -11,6 +11,7 @@
 char diskfile_path[PATH_MAX];
 sb* superblock;
 int inodesPerBlock = BLOCK_SIZE/sizeof(struct inode);
+int direntPerBlock = BLOCK_SIZE/sizeof(struct dirent);
 // Declare your in-memory data structures here
 
 /* 
@@ -122,8 +123,8 @@ int writei(uint16_t ino, struct inode *inode) {
 int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *dirent) {
 
   	// Step 1: Call readi() to get the inode using ino (inode number of current directory)
-	struct inode* currentDir = malloc(sizeof(struct inode));
-	int r = readi(ino, currentDir);
+	struct inode* currDir = malloc(sizeof(struct inode));
+	int r = readi(ino, currDir);
 
 	if(r < 0) {
 		puts("Error reading current directory's inode.");
@@ -131,19 +132,43 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
 	}
 
   	// Step 2: Get data block of current directory from inode
-
+	int* currDirData = currDir->direct_ptr; 
 	// Step 3: Read directory's data block and check each directory entry.
 	//If the name matches, then copy directory entry to dirent structure
+	int dataIndex;
+	struct dirent* currBlock = calloc(1, BLOCK_SIZE);
 
-	return 0;
+	for(dataIndex = 0; dataIndex < 16; dataIndex++) {
+		if(currDirData[dataIndex] == -1) continue;
+
+		bio_read(superblock->d_start_blk + currDirData[dataIndex] ,currBlock);
+		int direntIndex;
+
+		for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++) {
+			struct dirent* entry = currBlock + direntIndex;
+
+			if(entry == NULL || entry->valid == 0) continue;
+
+			if(strcmp(entry->name, fname) == 0) {
+				*dirent = *entry;
+				free(currDir);
+				free(currBlock);
+				return 0;
+			}
+		}
+	}
+	//Name not found.
+	free(currDir);
+	free(currBlock);
+	return -1;
 }
 
 int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t name_len) {
 
 	// Step 1: Read dir_inode's data block and check each directory entry of dir_inode
-	
+	struct dirent* dataBlock = calloc(1, BLOCK_SIZE);
 	// Step 2: Check if fname (directory name) is already used in other entries
-
+	int inUse = dir_find(dir_inode->ino, fname, name_len, dataBlock);
 	// Step 3: Add directory entry in dir_inode's data block and write to disk
 
 	// Allocate a new data block for this directory if it does not exist
