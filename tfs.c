@@ -145,7 +145,7 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
 		int direntIndex;
 
 		for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++) {
-			struct dirent* entry = currBlock + direntIndex;
+			struct dirent* entry = currBlock + direntIndex; //TODO: Check pointer arithmetic
 
 			if(entry == NULL || entry->valid == 0) continue;
 
@@ -182,9 +182,25 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 	newDir->len = name_len; //len from function args
 
 	// Allocate a new data block for this directory if it does not exist
-	
-	// Update directory inode
+	int direntIndex, found = 0;
+	struct dirent* entry;
 
+	for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++) {
+			entry = dataBlock + direntIndex; 
+
+			if(entry->valid == 0) {
+				found = 1;
+				break;
+			}
+	}
+	if(found) {
+		*entry = *newDir;
+	} else {
+		puts("No free space in block.");
+		return -1;
+	}
+	// Update directory inode
+	dir_inode.direct_ptr[direntIndex] = ;
 	// Write directory entry
 
 	return 0;
