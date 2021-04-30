@@ -145,7 +145,7 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
 		int direntIndex;
 
 		for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++) {
-			struct dirent* entry = currBlock + direntIndex; //TODO: Check pointer arithmetic
+			struct dirent* entry = currBlock + direntIndex;
 
 			if(entry == NULL || entry->valid == 0) continue;
 
@@ -174,6 +174,8 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 		puts("This directory already exists, exiting without overwriting.");
 		return -1;
 	}
+
+	int* currDirData = dir_inode.direct_ptr;
 	// Step 3: Add directory entry in dir_inode's data block and write to disk
 	struct dirent* newDir = malloc(sizeof(struct dirent));
 	newDir->valid = 1; //make it valid
@@ -182,31 +184,84 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 	newDir->len = name_len; //len from function args
 
 	// Allocate a new data block for this directory if it does not exist
-	int direntIndex, found = 0;
+	int dataIndex;
+	int direntIndex;
 	struct dirent* entry;
+	struct dirent* currBlock = calloc(1, BLOCK_SIZE);
+	int flag = 0;
+	for(dataIndex = 0; dataIndex < 16; dataIndex++) {
+		if(currDirData[dataIndex] == -1) continue;
 
-	for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++) {
-			entry = dataBlock + direntIndex; 
-
-			if(entry->valid == 0) {
-				found = 1;
+		bio_read(superblock->d_start_blk + currDirData[dataIndex], currBlock);
+		for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++) {
+			entry = currBlock + direntIndex;
+			if(entry == NULL || entry->valid == 0) {
+				// Update new directory inode
+				*entry = *newDir;
+				// Write new directory entry
+				bio_write(superblock->d_start_blk + currDirData[dataIndex], currBlock);
+				flag = 1;
 				break;
 			}
+		}
+		if(flag) break;
 	}
-	if(found) {
-		*entry = *newDir;
-	} else {
-		puts("No free space in block.");
+	if(!flag) {
+		puts("Probably Error: no space in datablocks for new directory");
 		return -1;
 	}
-	// Update directory inode
-	dir_inode.direct_ptr[direntIndex] = ;
-	// Write directory entry
 
+	// Update directory inode
+	dir_inode.size += sizeof(struct dirent);
+	time(&(dir_inode.vstat.st_mtime));
+	// Write directory entry
+	writei(dir_inode.ino, &dir_inode);
 	return 0;
 }
 
 int dir_remove(struct inode dir_inode, const char *fname, size_t name_len) {
+	struct dirent* dataBlock = calloc(1, BLOCK_SIZE);
+	int inUse = dir_find(dir_inode.ino, fname, name_len, dataBlock);
+
+	if(inUse == -1) {
+		puts("Unable to remove directory.");
+		return -1;
+	}
+	int* currDirData = dir_inode.direct_ptr;
+	// Allocate a new data block for this directory if it does not exist
+	int dataIndex;
+	int direntIndex;
+	struct dirent* entry;
+	struct dirent* currBlock = calloc(1, BLOCK_SIZE);
+	int flag = 0;
+	for(dataIndex = 0; dataIndex < 16; dataIndex++) {
+		if(currDirData[dataIndex] == -1) continue;
+
+		bio_read(superblock->d_start_blk + currDirData[dataIndex], currBlock);
+		for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++) {
+			entry = currBlock + direntIndex;
+			if(entry != NULL && entry->valid == 1 && strcmp(entry->name, fname)==0) {
+				
+				// Update new directory inode
+				entry->valid = 0;
+				// Write new directory entry
+				bio_write(superblock->d_start_blk + currDirData[dataIndex], currBlock);
+				flag = 1;
+				break;
+			}
+		}
+		if(flag) break;
+	}
+	if(!flag) {
+		puts("Error: found directory in dir_find but didn't remove it.");
+		return -1;
+	}
+
+	// Update directory inode
+	dir_inode.size -= sizeof(struct dirent);
+	time(&(dir_inode.vstat.st_mtime));
+	// Write directory entry
+	writei(dir_inode.ino, &dir_inode);
 
 	// Step 1: Read dir_inode's data block and checks each directory entry of dir_inode
 	
@@ -225,7 +280,31 @@ int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
 	// Step 1: Resolve the path name, walk through path, and finally, find its inode.
 	// Note: You could either implement it in a iterative way or recursive way
 
-	return 0;
+	if(strlen(path)==0){
+		readi(ino, inode);
+	}
+	if(path[0]=='/') path++;
+	char* next = strstr(path, "/");
+	if(next==NULL){ // at end
+		struct dirent *dirent = (struct dirent*)malloc(sizeof(struct dirent));
+		int i = dir_find(ino, path, strlen(path)+1, dirent); // check is strlen is correct
+		if(i==-1){
+			puts("unable to get node by path");
+			return -1;
+		}
+		readi(dirent->ino, inode);
+		return 0;
+	}
+	int length = strlen(path)-strlen(next);
+	char* dir_path = (char*)malloc(length+2);
+	strncpy(dir_path, path, length);
+	struct dirent *dirent = (struct dirent*)malloc(sizeof(struct dirent));
+	int i = dir_find(ino, dir_path, length, dirent);
+	if(i==-1){
+		puts("unable to get node by path // dir");
+		return -1;
+	}
+	return get_node_by_path(next, dirent->ino, inode);
 }
 
 /* 
@@ -322,31 +401,83 @@ static void tfs_destroy(void *userdata) {
 static int tfs_getattr(const char *path, struct stat *stbuf) {
 
 	// Step 1: call get_node_by_path() to get inode from path
+	struct inode* inode = (struct inode*)malloc(sizeof(struct inode));
+	int found = get_node_by_path(path, 0, inode);
+	if(found == -1) {
+		free(inode);
+		return -1;
+	}
 
 	// Step 2: fill attribute of file into stbuf from inode
-
+		stbuf->st_ino=inode->ino;
+		stbuf->st_nlink=inode->link;
+		stbuf->st_size=inode->size;
+		stbuf->st_uid = getuid();
+		stbuf->st_gid = getgid();
 		stbuf->st_mode   = S_IFDIR | 0755;
-		stbuf->st_nlink  = 2;
-		time(&stbuf->st_mtime);
+		stbuf->st_mtime=inode->vstat.st_mtime;
 
+		if(inode->type==TFS_DIR){
+			stbuf->st_mode = S_IFDIR | 0755;
+		} else if (inode->type==TFS_FILE){
+			stbuf->st_mode = S_IFREG | 0644;
+		}
+	
+	free(inode);
 	return 0;
 }
 
 static int tfs_opendir(const char *path, struct fuse_file_info *fi) {
 
 	// Step 1: Call get_node_by_path() to get inode from path
+	struct inode* inode = (struct inode*)malloc(sizeof(struct inode));
+	int found = get_node_by_path(path, 0, inode);
 
 	// Step 2: If not find, return -1
-
+	if(found==-1){
+		free(inode);
+		return -1;
+	}
+	free(inode);
     return 0;
 }
 
 static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
 
 	// Step 1: Call get_node_by_path() to get inode from path
+	struct inode* inode = (struct inode*)malloc(sizeof(struct inode));
+	int found = get_node_by_path(path, 0, inode);
 
+	if(found==-1){
+		free(inode);
+		return -1;
+	}
+	int* currDirData = inode->direct_ptr;
+	int dataIndex;
+	int direntIndex;
+	struct dirent* currBlock = calloc(1, BLOCK_SIZE);
+	
 	// Step 2: Read directory entries from its data blocks, and copy them to filler
+	for(dataIndex = 0; dataIndex<16; dataIndex++){
+		if(currDirData[dataIndex]==-1) continue;
 
+		bio_read(superblock->d_start_blk+currDirData[dataIndex], currBlock);
+
+		for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++){
+			struct dirent* entry = currBlock + direntIndex;
+			if(entry==NULL || entry->valid==0) continue;
+			// put directory entry into the filler
+			int full = filler(buffer, entry->name, NULL, offset);
+			if(full==-1){
+				free(inode);
+				free(currBlock);
+				return 0;
+			}
+		}
+	}
+
+	free(inode);
+	free(currBlock);
 	return 0;
 }
 
