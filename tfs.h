@@ -80,5 +80,5 @@ uint8_t get_bitmap(bitmap_t b, int i) {
 
 // User functions and variables
 
-struct inode* create_inode(int inodeType);
+struct inode* create_inode(int ino, int inodeType);
 #endif

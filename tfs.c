@@ -343,14 +343,15 @@ int tfs_mkfs() {
 	bio_write(2, data_bmap);
 
 	// update inode for root directory
-	struct inode* root = create_inode(TFS_DIR);
+	int ino = get_avail_ino();
+	struct inode* root = create_inode(ino, TFS_DIR);
 	writei(0, root);
 	return 0;
 }
 
-struct inode* create_inode(int inodeType) {
+struct inode* create_inode(int ino, int inodeType) {
 	struct inode* temp = calloc(1, sizeof(struct inode));
-	temp->ino = get_avail_ino();
+	temp->ino = ino;
 	temp->valid = 1;
 	temp->size = 0;
 	temp->type = inodeType;
@@ -497,23 +498,44 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 	// Step 2: Call get_node_by_path() to get inode of parent directory
 	struct inode* parent = (struct inode*) malloc(sizeof(struct inode));
 	if(get_node_by_path(dirPath, 0, parent) == -1) {
-		Puts("No such file or directory.");
+		puts("No such file or directory.");
+		free(dirPath);
+		free(basePath);
+		free(parent);
 		return -1;
 	}
 	// Step 3: Call get_avail_ino() to get an available inode number
 	int available = get_avail_ino();
 	// Step 4: Call dir_add() to add directory entry of target directory to parent directory
-	dir_add(*parent, available, basePath, strlen(basePath));
-
+	int return_status = dir_add(*parent, available, basePath, strlen(basePath)); // dir_add also makes sure dir doesn't already exist
+	if(return_status==-1){
+		puts("could not create directory");
+		// need to unset bitmap
+		bitmap_t inode_bitmap = malloc(BLOCK_SIZE);
+		bio_read(1, inode_bitmap);
+		unset_bitmap(inode_bitmap, available);
+		bio_write(1, inode_bitmap);
+		free(inode_bitmap);
+		// frees
+		free(dirPath);
+		free(basePath);
+		free(parent);
+		return -1;
+	}
 	// Step 5: Update inode for target directory
-
+	struct inode* new_dir = create_inode(available, TFS_DIR);
+	new_dir->vstat.st_mode = mode;
 	// Step 6: Call writei() to write inode to disk
-	
+	writei(available, new_dir);
 
+	free(new_dir);
+	free(dirPath);
+	free(basePath);
+	free(parent);
 	return 0;
 }
 
-static int tfs_rmdir(const char *path) {
+static int tfs_rmdir(const char *path) { // ADD FREES
 
 	// Step 1: Use dirname() and basename() to separate parent directory path and target directory name
 	char* dirPath = (char*) malloc(strlen(path) + 1);
@@ -526,14 +548,54 @@ static int tfs_rmdir(const char *path) {
 	basename(basePath);
 
 	// Step 2: Call get_node_by_path() to get inode of target directory
+	struct inode* target = (struct inode*) malloc(sizeof(struct inode));
+	if(get_node_by_path(dirPath, 0, target) == -1) {
+		puts("No such file or directory.");
+		free(dirPath);
+		free(basePath);
+		free(target);
+		return -1;
+	}
 
 	// Step 3: Clear data block bitmap of target directory
+	bitmap_t data_bitmap = malloc(BLOCK_SIZE);
+	bio_read(2, data_bitmap);
+	int dataIndex=0;
+	int* currDirData = target->direct_ptr;
+	for(dataIndex=0; dataIndex<16; dataIndex++){
+		if(currDirData[dataIndex]!=-1){ // there is block listed
+			if(get_bitmap(data_bitmap, currDirData[dataIndex])==1){ // listed block is still in use
+				puts("rmdir: failed to remove directory: directory not empty");
+				return -1;
+			}
+		}
+	}
 
 	// Step 4: Clear inode bitmap and its data block
+	bitmap_t inode_bitmap = malloc(BLOCK_SIZE);
+	bio_read(1, inode_bitmap);
+	unset_bitmap(inode_bitmap, target->ino);
+	bio_write(1, inode_bitmap);
+	free(inode_bitmap);
+
 
 	// Step 5: Call get_node_by_path() to get inode of parent directory
+	struct inode* parent = (struct inode*) malloc(sizeof(struct inode));
+	if(get_node_by_path(dirPath, 0, parent) == -1) {
+		puts("No such file or directory.");
+		free(dirPath);
+		free(basePath);
+		free(target);
+		free(parent);
+		return -1;
+	}
 
 	// Step 6: Call dir_remove() to remove directory entry of target directory in its parent directory
+	int return_status = dir_remove(*parent, basePath, strlen(basePath));
+	if(return_status==-1){
+		puts("could not remove directory");
+		return -1;
+	}
 
 	return 0;
 }
