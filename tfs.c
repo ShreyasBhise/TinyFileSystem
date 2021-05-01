@@ -190,7 +190,10 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 	struct dirent* currBlock = calloc(1, BLOCK_SIZE);
 	int flag = 0;
 	for(dataIndex = 0; dataIndex < 16; dataIndex++) {
-		if(currDirData[dataIndex] == -1) continue;
+		if(currDirData[dataIndex] == -1) {
+			int available = get_avail_blkno();
+			currDirData[dataIndex] = available;
+		}
 
 		bio_read(superblock->d_start_blk + currDirData[dataIndex], currBlock);
 		for(direntIndex = 0; direntIndex < direntPerBlock; direntIndex++) {
@@ -278,21 +281,20 @@ int dir_remove(struct inode dir_inode, const char *fname, size_t name_len) {
  * namei operation
  */
 int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
-	
+	puts("in get_node_by_path");
 	// Step 1: Resolve the path name, walk through path, and finally, find its inode.
 	// Note: You could either implement it in a iterative way or recursive way
-	if(strcmp(path, "/") == 0) {
-		readi(0, inode);
+	if(strcmp(path, "/") == 0 || strlen(path) == 0){
+		printf("Current path is \'%s\'.\n", path);
+		readi(ino, inode);
 		return 0;
 	}
-	if(strlen(path)==0){
-		readi(ino, inode);
-	}
-	if(path[0]=='/') path++;
-	char* next = strstr(path, "/");
+	char* next = strstr(path, "/") + 1;
+	printf("Current path is \'%s\'.\n", path);
+	printf("Next thing is \'%s\'\n", next);
 	if(next==NULL){ // at end
-		struct dirent *dirent = (struct dirent*)malloc(sizeof(struct dirent));
-		int i = dir_find(ino, path, strlen(path)+1, dirent); // check is strlen is correct
+		struct dirent* dirent = (struct dirent*) malloc(sizeof(struct dirent));
+		int i = dir_find(ino, next, strlen(next)+1, dirent); // check is strlen is correct
 		if(i==-1){
 			puts("unable to get node by path");
 			return -1;
@@ -302,7 +304,9 @@ int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
 	}
 	int length = strlen(path)-strlen(next);
 	char* dir_path = (char*)malloc(length+2);
-	strncpy(dir_path, path, length);
+	memcpy(dir_path, path, length);
+	dir_path[length] = '\0';
+	printf("Path to here is \'%s\'\n", dir_path);
 	struct dirent *dirent = (struct dirent*)malloc(sizeof(struct dirent));
 	int i = dir_find(ino, dir_path, length, dirent);
 	if(i==-1){
@@ -411,7 +415,7 @@ static int tfs_getattr(const char *path, struct stat *stbuf) {
 	int found = get_node_by_path(path, 0, inode);
 	if(found == -1) {
 		free(inode);
-		return -1;
+		return -ENOENT;
 	}
 
 	// Step 2: fill attribute of file into stbuf from inode
@@ -617,7 +621,7 @@ static int tfs_releasedir(const char *path, struct fuse_file_info *fi) {
 }
 
 static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-
+	printf("In create.\n");
 	// Step 1: Use dirname() and basename() to separate parent directory path and target file name
 	char* dirPath = (char*) malloc(strlen(path) + 1);
 	strncpy(dirPath, path, strlen(path) + 1);
@@ -656,6 +660,7 @@ static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
 		free(dirPath);
 		free(basePath);
 		free(parent);
+
 		return -1;
 	}
 	// Step 5: Update inode for target file
@@ -668,7 +673,7 @@ static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
 	free(dirPath);
 	free(basePath);
 	free(parent);
-
+	printf("Created file %s\n", path);
 	return 0;
 }
 
