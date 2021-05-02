@@ -7,9 +7,9 @@
 #include <string.h>
 #include <sys/types.h>
 #include <dirent.h>
-
+#include <time.h>
 /* You need to change this macro to your TFS mount point*/
-#define TESTDIR "/tmp/raj107/mountdir"
+#define TESTDIR "/tmp/syb29/mountdir"
 
 #define N_FILES 100
 #define BLOCKSIZE 4096
@@ -21,16 +21,18 @@
 char buf[BLOCKSIZE];
 
 int main(int argc, char **argv) {
+	clock_t start, end;
+	double cpu_time_used;
 
 	int i, fd = 0, ret = 0;
 	struct stat st;
-
+	start = clock();
 	if ((fd = creat(TESTDIR "/file", FILEPERM)) < 0) {
 		perror("creat");
-		printf("TEST 1: File create failure \n");
+		//printf("TEST 1: File create failure \n");
 		exit(1);
 	}
-	printf("TEST 1: File create Success \n");
+	//printf("TEST 1: File create Success \n");
 
 
 	/* Perform sequential writes */
@@ -39,24 +41,24 @@ int main(int argc, char **argv) {
 		memset(buf, 0x61 + i, BLOCKSIZE);
 
 		if (write(fd, buf, BLOCKSIZE) != BLOCKSIZE) {
-			printf("TEST 2: File write failure \n");
+			//printf("TEST 2: File write failure \n");
 			exit(1);
 		}
 	}
 	
 	fstat(fd, &st);
 	if (st.st_size != ITERS*BLOCKSIZE) {
-		printf("TEST 2: File write failure \n");
+		//printf("TEST 2: File write failure \n");
 		exit(1);
 	}
-	printf("TEST 2: File write Success \n");
+	//printf("TEST 2: File write Success \n");
 
 
 	/*Close operation*/	
 	if (close(fd) < 0) {
-		printf("TEST 3: File close failure \n");
+		//printf("TEST 3: File close failure \n");
 	}
-	printf("TEST 3: File close Success \n");
+	//printf("TEST 3: File close Success \n");
 
 
 	/* Open for reading */
@@ -72,39 +74,38 @@ int main(int argc, char **argv) {
 		memset(buf, 0, BLOCKSIZE);
 
 		if (read(fd, buf, BLOCKSIZE) != BLOCKSIZE) {
-			printf("TEST 4: File read failure \n");
+			//printf("TEST 4: File read failure \n");
 			exit(1);
 		}
-		//printf("buf %s \n", buf);
+		////printf("buf %s \n", buf);
 	}
         
 	if (pread(fd, buf, BLOCKSIZE, 2*BLOCKSIZE) != BLOCKSIZE) {
 		perror("pread");
-		printf("TEST 4: File read failure \n");
+		//printf("TEST 4: File read failure \n");
 		exit(1);
 	}
     
-	printf("TEST 4: File read Success \n");
+	//printf("TEST 4: File read Success \n");
 	close(fd);
 
 
 	/* Unlink the file */
 	if ((ret = unlink(TESTDIR "/file")) < 0) {
 		perror("unlink");
-		printf("TEST 5: File unlink failure \n");
+		//printf("TEST 5: File unlink failure \n");
 		exit(1);
 	}
-	printf("TEST 5: File unlink success \n");
+	//printf("TEST 5: File unlink success \n");
 
 
 	/* Directory creation test */
 	if ((ret = mkdir(TESTDIR "/files", DIRPERM)) < 0) {
 		perror("mkdir");
-		printf("TEST 6: failure. Check if dir %s already exists, and "
-			"if it exists, manually remove and re-run \n", TESTDIR "/files");
+		//printf("TEST 6: failure. Check if dir %s already exists, and if it exists, manually remove and re-run \n", TESTDIR "/files");
 		exit(1);
 	}
-	printf("TEST 6: Directory create success \n");
+	//printf("TEST 6: Directory create success \n");
 
 	
 	/* Sub-directory creation test */
@@ -115,7 +116,7 @@ int main(int argc, char **argv) {
 		sprintf(subdir_path, "%s%d", TESTDIR "/files/dir", i);
 		if ((ret = mkdir(subdir_path, DIRPERM)) < 0) {
 			perror("mkdir");
-			printf("TEST 7: Sub-directory create failure \n");
+			//printf("TEST 7: Sub-directory create failure \n");
 			exit(1);
 		}
 	}
@@ -128,12 +129,16 @@ int main(int argc, char **argv) {
 		sprintf(subdir_path, "%s%d", TESTDIR "/files/dir", i);
 		if ((dir = opendir(subdir_path)) == NULL) {
 			perror("opendir");
-			printf("TEST 7: Sub-directory create failure \n");
+			//printf("TEST 7: Sub-directory create failure \n");
 			exit(1);
 		}
 	}
-	printf("TEST 7: Sub-directory create success \n");
+	//printf("TEST 7: Sub-directory create success \n");
 
-	printf("Benchmark completed \n");
+	//printf("Benchmark completed \n");
+	end = clock();
+
+	cpu_time_used = ((double) (end - start))/CLOCKS_PER_SEC;
+	printf("%f\n", cpu_time_used);
 	return 0;
 }

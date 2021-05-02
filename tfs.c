@@ -760,7 +760,7 @@ static int tfs_write(const char *path, const char *buffer, size_t size, off_t of
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
 	int bytesWritten = 0;
-	char* bufferEnd = buffer;
+	char* bufferEnd = strdup(buffer);
 
 	int* currData = inode->direct_ptr;
 	int* dataBlock = malloc(BLOCK_SIZE);
