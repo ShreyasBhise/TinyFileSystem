@@ -1,8 +1,8 @@
 #!/bin/sh
-
+netid=syb29
 make clean > /dev/null
 make  > /dev/null
-./tfs -s /tmp/syb29/mountdir
+./tfs -s /tmp/$netid/mountdir
 #echo "Mounted /tmp/syb29/mountdir"
 cd benchmark
 make clean  > /dev/null
@@ -11,11 +11,11 @@ make  > /dev/null
 ./simple_test >> ../simplelog
 make clean  > /dev/null
 cd ..
-fusermount -u /tmp/syb29/mountdir
+fusermount -u /tmp/$netid/mountdir
 #echo "Unmounted /tmp/syb29/mountdir"
 make clean  > /dev/null
 make > /dev/null
-./tfs -s /tmp/syb29/mountdir
+./tfs -s /tmp/$netid/mountdir
 #echo "Mounted /tmp/syb29/mountdir"
 cd benchmark
 make clean  > /dev/null
@@ -24,4 +24,4 @@ make  > /dev/null
 ./test_case >> ../testlog
 make clean  > /dev/null
 cd ..
-fusermount -u /tmp/syb29/mountdir
+fusermount -u /tmp/$netid/mountdir
