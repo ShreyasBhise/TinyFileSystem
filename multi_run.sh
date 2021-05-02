@@ -1,12 +1,13 @@
 #!/bin/sh
-rm simplelog
-rm testlog
-a=0
 
-while [ "$a" -lt 2 ]
+a=0
+numtest=10
+while [ "$a" -lt "$numtest" ]
 do
     ./auto_run.sh
     a=`expr $a + 1`
 done
 
 python average.py $a
+rm simplelog
+rm testlog
