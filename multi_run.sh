@@ -1,7 +1,7 @@
 #!/bin/sh
 
 a=0
-numtest=10
+numtest=1000000
 while [ "$a" -lt "$numtest" ]
 do
     ./auto_run.sh
