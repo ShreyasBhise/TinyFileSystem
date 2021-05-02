@@ -528,7 +528,6 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 	if(get_node_by_path(dirPath, 0, parent) == -1) {
 		puts("Unable to get parent directory.");
 		free(dirPath);
-		free(basePath);
 		free(parent);
 		return -1;
 	}
