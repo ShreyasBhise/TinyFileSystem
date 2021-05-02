@@ -1,4 +1,5 @@
 #!/bin/sh
+
 make clean > /dev/null
 make  > /dev/null
 ./tfs -s /tmp/syb29/mountdir

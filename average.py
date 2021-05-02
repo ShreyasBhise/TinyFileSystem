@@ -21,7 +21,7 @@ for num in f:
     test_avg += temp
     if temp > test_max:
         test_max = temp
-    if temp < simple_min:
+    if temp < test_min:
         test_min = temp
 
 f.close()
