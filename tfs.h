@@ -19,7 +19,7 @@
 #include <limits.h>
 #include <fuse.h>
 #include <math.h>
-
+#include <pthread.h>
 #include "block.h"
 
 #ifndef _TFS_H
@@ -79,7 +79,7 @@ uint8_t get_bitmap(bitmap_t b, int i) {
 }
 
 // User functions and variables
-
+pthread_mutex_t lock;
 struct inode* create_inode(int ino, int inodeType);
 void count_blocks();
 #endif
